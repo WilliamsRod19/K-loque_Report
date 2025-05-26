@@ -1,0 +1,38 @@
+Aspectos generales:
+Deberán haber dos tipos de usuario, administrador.
+Cada rol se limita lo que verá.
+
+	Un usuario tendrá:
+		- Usuario como tal.
+		- Rol.
+		- Permisos.
+		- Usuario.
+		- Contraseña.
+
+	El admin podrá:
+		- Crear usuarios.
+		- Ver todos los usuarios.
+		- Actualizar usuarios. (Activar usuario)
+		- Eliminar usuarios. (Soft delete, desactivación)
+
+		- Crear incidente.
+		- Ver todos los incidentes.
+		- Modificar incidentes. (Cambiarle estado de Incidente Activo a Incidente Resuelto + indicación de
+					 cuál fue la resolución del incidente reportado)
+		- Eliminar incidente. (Soft delete, desactivación)
+
+	El empleado podrá:
+		- Crear incidente.
+		- Ver sólo sus incidentes reportados.
+		
+	Procesos de la aplicación:
+		- Iniciar sesión.
+		- Generar PDF. (Reporte de todos los incidentes activos
+			       Un reporte pdf de un incidente en particular)
+
+	Procesos automaticos:
+		- Enviar correo cuando alguien registre un incidente.
+		- Enviar correo cuando un incidente se marque como solucionado más el mensaje de cómo.
+
+
+Reportlab - Para generación de reportes desde el backend.
