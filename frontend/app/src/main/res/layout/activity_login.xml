@@ -9,7 +9,6 @@
     android:background="#FFFFFF"
     tools:context=".LoginActivity">
 
-    <!-- Título -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -19,7 +18,6 @@
         android:textColor="#111111"
         android:layout_marginBottom="24dp" />
 
-    <!-- Campo de usuario -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -79,7 +77,6 @@
             android:inputType="textPassword"/>
     </LinearLayout>
 
-    <!-- Mostrar contraseña -->
     <TextView
         android:id="@+id/showPassword"
         android:layout_width="wrap_content"
@@ -90,7 +87,6 @@
         android:layout_marginBottom="20dp"
         android:layout_gravity="end"/>
 
-    <!-- Botón -->
     <Button
         android:id="@+id/btnLogin"
         android:layout_width="match_parent"
