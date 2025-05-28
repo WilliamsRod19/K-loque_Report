@@ -17,6 +17,16 @@ from django.utils import timezone
 from datetime import timedelta
 from utilities.incident_resolved_email import generate_incident_resolved_email_html
 
+# imports para drf-yasg
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from rest_framework import permissions
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from drf_yasg import utils
+
+bearer_security_definition = [{'Bearer': []}]
+
+
 def get_base_url_with_port():
     base_url = os.getenv("BASE_URL", "http://localhost")
     port = os.getenv("BASE_URL_BACKEND_PORT")
@@ -27,7 +37,7 @@ def get_base_url_with_port():
 
 def validate_incident_data(data):
     errors = {}
-    required_fields = ['incident_type', 'description', 'date', 'status']
+    required_fields = ['incident_type', 'description', 'date']
     for field in required_fields:
         if field not in data or not str(data[field]).strip():
             errors[field] = f"El campo '{field}' es requerido y no puede estar vacío."
@@ -83,9 +93,97 @@ def get_user_first_name_by_id(user_id):
         return "Error al obtener nombre"
 
 
+incident_object_schema_detailed = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'id': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID único del incidente."),
+        'incident_type': openapi.Schema(type=openapi.TYPE_STRING, description="Tipo de incidente."),
+        'description': openapi.Schema(type=openapi.TYPE_STRING, description="Descripción detallada del incidente."),
+        'date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE, description="Fecha del incidente (YYYY-MM-DD)."),
+        'image_url': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, description="URL completa de la imagen adjunta, si existe.", nullable=True),
+        'comment': openapi.Schema(type=openapi.TYPE_STRING, description="Comentario de resolución o seguimiento.", nullable=True),
+        'status': openapi.Schema(type=openapi.TYPE_STRING, description="Código del estado actual del incidente (e.g., 'activo', 'resuelto')."),
+        'status_display': openapi.Schema(type=openapi.TYPE_STRING, description="Descripción legible del estado actual del incidente."),
+        'active': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indica si el incidente está activo (no eliminado lógicamente)."),
+        'created_by_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID del usuario que creó el incidente (visible para superusuarios).", nullable=True),
+        'created_by_name': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre del usuario que creó el incidente."),
+        'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, description="Fecha y hora de creación (YYYY-MM-DD HH:MM:SS) (visible para superusuarios)."),
+        'modified_by_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID del usuario que modificó por última vez el incidente (visible para superusuarios).", nullable=True),
+        'modified_by_name': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre del usuario que modificó por última vez el incidente (visible para superusuarios).", nullable=True),
+        'updated_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, description="Fecha y hora de la última modificación (YYYY-MM-DD HH:MM:SS) (visible para superusuarios).")
+    }
+)
+
+
+incident_object_schema_user = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'id': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID único del incidente."),
+        'incident_type': openapi.Schema(type=openapi.TYPE_STRING, description="Tipo de incidente."),
+        'description': openapi.Schema(type=openapi.TYPE_STRING, description="Descripción detallada del incidente."),
+        'date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE, description="Fecha del incidente (YYYY-MM-DD)."),
+        'image_url': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, description="URL completa de la imagen adjunta, si existe.", nullable=True),
+        'comment': openapi.Schema(type=openapi.TYPE_STRING, description="Comentario de resolución o seguimiento.", nullable=True),
+        'status': openapi.Schema(type=openapi.TYPE_STRING, description="Código del estado actual del incidente."),
+        'status_display': openapi.Schema(type=openapi.TYPE_STRING, description="Descripción legible del estado actual del incidente."),
+        'created_by_name': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre del usuario que creó el incidente."),
+    }
+)
+
+
+error_response_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+        'message': openapi.Schema(type=openapi.TYPE_STRING)
+    }
+)
+
+
+error_response_with_dict_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+        'message': openapi.Schema(type=openapi.TYPE_STRING),
+        'errors': openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            description="Diccionario de errores de validación por campo.",
+            additional_properties=openapi.Schema(type=openapi.TYPE_STRING) # Permite cualquier clave con valor string
+        )
+    }
+)
+
+
 class IncidentRC(APIView):
 
 
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+
+    @swagger_auto_schema(
+        operation_id="api_incident_list",
+        operation_description="Obtiene una lista de incidentes. Los superusuarios ven todos los incidentes con detalles completos. Los usuarios regulares solo ven los incidentes creados por ellos con detalles limitados. Requiere autenticación.",
+        security=bearer_security_definition, # @authenticate_user() implica que se requiere token
+        responses={
+            HTTPStatus.OK: openapi.Response(
+                description="Lista de incidentes recuperada exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=incident_object_schema_detailed,
+                            description="Array de incidentes. La estructura de cada incidente puede variar ligeramente si el solicitante es superusuario o no."
+                        )
+                    }
+                )
+            ),
+            HTTPStatus.UNAUTHORIZED: openapi.Response(description="Token no provisto o inválido.", schema=error_response_schema),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(description="Error interno del servidor.", schema=error_response_schema)
+        },
+    )
     @authenticate_user()
     def get(self, request):
         is_superuser_requesting = request.user.is_superuser
@@ -140,6 +238,60 @@ class IncidentRC(APIView):
         return JsonResponse({"status": "ok", "data": data_list}, status=HTTPStatus.OK)
 
 
+    @swagger_auto_schema(
+        operation_id="api_incident_create",
+        operation_description="Crea un nuevo incidente. Requiere autenticación.",
+        security=bearer_security_definition,
+        consumes=['multipart/form-data'],
+        manual_parameters=[
+            openapi.Parameter(
+                name='incident_type',
+                in_=openapi.IN_FORM,
+                description="Tipo de incidente (máx 100 caracteres).",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                name='description',
+                in_=openapi.IN_FORM,
+                description="Descripción detallada del incidente.",
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+            openapi.Parameter(
+                name='date',
+                in_=openapi.IN_FORM,
+                description="Fecha del incidente (YYYY-MM-DD).",
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_DATE,
+                required=True
+            ),
+            openapi.Parameter(
+                name='image',
+                in_=openapi.IN_FORM,
+                description="Imagen adjunta (opcional, JPG, JPEG, PNG, máx 5MB).",
+                type=openapi.TYPE_FILE,
+                required=False
+            )
+        ],
+        responses={
+            HTTPStatus.CREATED: openapi.Response(
+                description="Incidente creado exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Incidente creado exitosamente."),
+                        'incident_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID del incidente recién creado."),
+                        'image_filename_saved': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre del archivo de imagen guardado, si se subió alguno.", nullable=True)
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response(description="Datos inválidos.", schema=error_response_with_dict_schema),
+            HTTPStatus.UNAUTHORIZED: openapi.Response(description="Token no provisto o inválido.", schema=error_response_schema),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(description="Error interno del servidor.", schema=error_response_schema)
+        },
+    )
     @authenticate_user()
     @transaction.atomic
     def post(self, request):
@@ -223,6 +375,34 @@ class IncidentRC(APIView):
 class IncidentRUD(APIView):
 
 
+    permission_classes = [permissions.AllowAny]
+
+
+    @swagger_auto_schema(
+        operation_id="api_incident_retrieve",
+        operation_description="Recupera un incidente específico por su ID. Los superusuarios ven todos los detalles. Los usuarios regulares solo pueden ver sus propios incidentes y con detalles limitados. Requiere autenticación.",
+        manual_parameters=[
+            openapi.Parameter('id', openapi.IN_PATH, description="ID del incidente a recuperar.", required=True, type=openapi.TYPE_INTEGER),
+        ],
+        security=bearer_security_definition,
+        responses={
+            HTTPStatus.OK: openapi.Response(
+                description="Incidente recuperado exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"),
+                        'data': incident_object_schema_detailed
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response(description="ID de incidente inválido.", schema=error_response_schema),
+            HTTPStatus.UNAUTHORIZED: openapi.Response(description="Token no provisto o inválido.", schema=error_response_schema),
+            HTTPStatus.FORBIDDEN: openapi.Response(description="No tienes permiso para ver este incidente.", schema=error_response_schema),
+            HTTPStatus.NOT_FOUND: openapi.Response(description="Incidente no encontrado.", schema=error_response_schema),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(description="Error interno del servidor.", schema=error_response_schema)
+        },
+    )
     @authenticate_user() 
     def get(self, request, id):
         try:
@@ -283,6 +463,41 @@ class IncidentRUD(APIView):
         return JsonResponse({"status": "ok", "data": data}, status=HTTPStatus.OK)
     
 
+    @swagger_auto_schema(
+        operation_id="api_incident_resolve",
+        operation_description="Actualiza un incidente, permitiendo principalmente añadir un comentario y cambiar el estado a 'resuelto'. Requiere permiso 'incident.change_incident'.",
+        manual_parameters=[
+            openapi.Parameter('id', openapi.IN_PATH, description="ID del incidente a actualizar.", required=True, type=openapi.TYPE_INTEGER),
+        ],
+        security=bearer_security_definition,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            description="Campos para actualizar. Solo 'comment' y 'status' (a 'resuelto') son permitidos.",
+            properties={
+                'comment': openapi.Schema(type=openapi.TYPE_STRING, description="Comentario de resolución. Requerido si se cambia el estado a 'resuelto'.", nullable=True),
+                'status': openapi.Schema(type=openapi.TYPE_STRING, description="Nuevo estado del incidente. Solo se permite 'resuelto' a través de este endpoint.", example=Incident.STATUS_RESOLVED, enum=[Incident.STATUS_RESOLVED]),
+            },
+            # No hay 'required' a nivel de objeto porque ambos son opcionales
+        ),
+        responses={
+            HTTPStatus.OK: openapi.Response(
+                description="Incidente actualizado exitosamente o no se realizaron cambios.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"), # o "info"
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'data': incident_object_schema_detailed
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response(description="Datos inválidos o no permitidos para la actualización.", schema=error_response_schema),
+            HTTPStatus.UNAUTHORIZED: openapi.Response(description="Token no provisto o inválido.", schema=error_response_schema),
+            HTTPStatus.FORBIDDEN: openapi.Response(description="Permiso 'incident.change_incident' requerido.", schema=error_response_schema),
+            HTTPStatus.NOT_FOUND: openapi.Response(description="Incidente no encontrado.", schema=error_response_schema),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(description="Error interno del servidor.", schema=error_response_schema)
+        },
+    )
     @authenticate_user(required_permission='incident.change_incident')
     @transaction.atomic
     def put(self, request, id):
@@ -419,6 +634,31 @@ class IncidentRUD(APIView):
             )
 
 
+    @swagger_auto_schema(
+        operation_id="api_incident_delete",
+        operation_description="Elimina permanentemente un incidente por su ID. Requiere permiso 'incident.delete_incident'.",
+        manual_parameters=[
+            openapi.Parameter('id', openapi.IN_PATH, description="ID del incidente a eliminar.", required=True, type=openapi.TYPE_INTEGER),
+        ],
+        security=bearer_security_definition,
+        responses={
+            HTTPStatus.OK: openapi.Response(
+                description="Incidente eliminado exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Incidente '...' eliminado exitosamente."),
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response(description="ID de incidente inválido.", schema=error_response_schema),
+            HTTPStatus.UNAUTHORIZED: openapi.Response(description="Token no provisto o inválido.", schema=error_response_schema),
+            HTTPStatus.FORBIDDEN: openapi.Response(description="No tienes permiso para eliminar este incidente o permiso 'incident.delete_incident' requerido.", schema=error_response_schema),
+            HTTPStatus.NOT_FOUND: openapi.Response(description="Incidente no encontrado.", schema=error_response_schema),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(description="Error interno del servidor.", schema=error_response_schema)
+        },
+    )
     @authenticate_user(required_permission='incident.delete_incident')
     @transaction.atomic
     def delete(self, request, id):
@@ -457,6 +697,49 @@ class IncidentRUD(APIView):
 
 class IncidentSD(APIView): #Soft delete
 
+
+    permission_classes = [permissions.AllowAny]
+
+
+    @swagger_auto_schema(
+        operation_id="api_incident_set_active_status",
+        operation_description="Activa o desactiva (eliminación lógica) un incidente. Requiere permiso 'incident.change_incident'.",
+        manual_parameters=[
+            openapi.Parameter('id', openapi.IN_PATH, description="ID del incidente a activar/desactivar.", required=True, type=openapi.TYPE_INTEGER),
+        ],
+        security=bearer_security_definition,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['active'],
+            properties={
+                'active': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Nuevo estado de activación (true para activar, false para desactivar).")
+            }
+        ),
+        responses={
+            HTTPStatus.OK: openapi.Response(
+                description="Estado de activación del incidente actualizado exitosamente o no se realizaron cambios.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"), # o "info"
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'active': openapi.Schema(type=openapi.TYPE_BOOLEAN)
+                            }
+                        )
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response(description="Datos inválidos (e.g., falta el campo 'active' o no es booleano).", schema=error_response_schema),
+            HTTPStatus.UNAUTHORIZED: openapi.Response(description="Token no provisto o inválido.", schema=error_response_schema),
+            HTTPStatus.FORBIDDEN: openapi.Response(description="Permiso 'incident.change_incident' requerido.", schema=error_response_schema),
+            HTTPStatus.NOT_FOUND: openapi.Response(description="Incidente no encontrado.", schema=error_response_schema),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(description="Error interno del servidor.", schema=error_response_schema)
+        },
+    )
     @authenticate_user(required_permission='incident.change_incident')
     @transaction.atomic
     def patch(self, request, id): # El 'id' del incidente vendrá de la URL
@@ -530,6 +813,54 @@ class IncidentSD(APIView): #Soft delete
 
 
 class EditImage(APIView):
+
+
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+
+    @swagger_auto_schema(
+        operation_id="api_incident_edit_image",
+        operation_description="Actualiza o añade la imagen de un incidente existente. Solo permitido dentro de las 24 horas de creación del incidente. Requiere permiso 'incident.add_incident'.",
+        security=bearer_security_definition,
+        consumes=['multipart/form-data'],
+        manual_parameters=[
+            openapi.Parameter(
+                name='id',
+                in_=openapi.IN_FORM,
+                description="ID del incidente cuya imagen se va a actualizar.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+            openapi.Parameter(
+                name='incident_image',
+                in_=openapi.IN_FORM,
+                description="Nuevo archivo de imagen (JPG, JPEG, PNG, máx 5MB).",
+                type=openapi.TYPE_FILE,
+                required=True
+            )
+        ],
+        responses={
+            HTTPStatus.OK: openapi.Response(
+                description="Imagen del incidente actualizada exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Imagen del incidente actualizada exitosamente."),
+                        'incident_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'new_image_filename': openapi.Schema(type=openapi.TYPE_STRING),
+                        'new_image_url': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI)
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response(description="Datos inválidos (e.g., falta ID/imagen, ID no numérico, tipo/tamaño de archivo incorrecto).", schema=error_response_schema),
+            HTTPStatus.UNAUTHORIZED: openapi.Response(description="Token no provisto o inválido.", schema=error_response_schema),
+            HTTPStatus.FORBIDDEN: openapi.Response(description="No se puede modificar la imagen después de 24 horas o permiso 'incident.add_incident' requerido.", schema=error_response_schema),
+            HTTPStatus.NOT_FOUND: openapi.Response(description="Incidente no encontrado.", schema=error_response_schema),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(description="Error interno del servidor.", schema=error_response_schema)
+        },
+    )
     @authenticate_user(required_permission='incident.add_incident')
     @transaction.atomic
     def post(self, request): # Usamos POST para enviar el archivo y el ID

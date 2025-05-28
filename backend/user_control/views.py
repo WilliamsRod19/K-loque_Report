@@ -22,6 +22,14 @@ from user_control.serializers import UserSerializer
 from utilities.user_put_email import generate_user_update_notification_html
 from utilities.send_email import send_email_notification
 
+# imports para drf-yasg
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from rest_framework import permissions
+
+
+bearer_security_definition = [{'Bearer': []}]
+
 
 def get_base_url_with_port():
     base_url = os.getenv("BASE_URL", "http://localhost")
@@ -66,20 +74,56 @@ def validate_name_format(field, field_name):
         return f"El campo '{field_name}' contiene caracteres no válidos. Solo se permiten letras y espacios."
     return None
 
+user_object_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'id': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID único del usuario.", example=1),
+        'username': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre de usuario.", example="kloquereport"),
+        'first_name': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre(s) del usuario. Puede estar vacío.", example=""),
+        'last_name': openapi.Schema(type=openapi.TYPE_STRING, description="Apellido(s) del usuario. Puede estar vacío.", example=""),
+        'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL, description="Correo electrónico.", example="me@kloquereport.com"),
+        'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indica si la cuenta del usuario está activa.", example=True),
+        'is_admin': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indica si el usuario tiene privilegios de administrador (superuser).", example=True),
+        'last_login': openapi.Schema(type=openapi.TYPE_STRING, description="Fecha y hora del último inicio de sesión (Formato: DD-MM-YYYY HH:MM). Puede ser nulo.", example="26-05-2025 18:23", nullable=True),
+        'date_joined': openapi.Schema(type=openapi.TYPE_STRING, description="Fecha y hora de registro (Formato: DD-MM-YYYY HH:MM).", example="24-05-2025 11:32")
+    }
+)
 
 class UserRC(APIView):
     #Usuario Read and Create (registrar).
 
+    permission_classes = [permissions.AllowAny]
+
+
+    @swagger_auto_schema(
+        operation_id="api_user_list_all",
+        operation_description="Obtiene la lista de todos los usuarios. Requiere permiso 'user.view_user'.",
+        security=bearer_security_definition,
+        responses={
+            HTTPStatus.OK: openapi.Response(
+                description="Lista de usuarios recuperada exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=user_object_schema
+                        )
+                    }
+                )
+            ),
+            HTTPStatus.FORBIDDEN: openapi.Response(
+                description="Acceso denegado. Permiso 'user.view_user' requerido.",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(
+                description="Error interno del servidor.",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+        },
+    )
     @authenticate_user(required_permission='user.view_user')
     def get(self, request):
-        """
-        Obtiene la lista de todos los usuarios.
-
-        El decorador `authenticate_user` ya ha verificado que:
-        1. El usuario está autenticado.
-        2. El usuario tiene el permiso 'user.user_view' (o es superusuario).
-        El objeto `request.user` contiene la instancia del usuario autenticado.
-        """
         try:
             users = User.objects.all().order_by('id')
             
@@ -94,6 +138,51 @@ class UserRC(APIView):
             )
 
     #Registrar
+    @swagger_auto_schema(
+        operation_id="api_user_create_new",
+        operation_description="Registra (crea) un nuevo usuario. Requiere permiso 'user.add_user'.",
+        security=bearer_security_definition,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['first_name', 'last_name', 'username', 'email', 'password'],
+            properties={
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre(s) del nuevo usuario."),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING, description="Apellido(s) del nuevo usuario."),
+                'username': openapi.Schema(type=openapi.TYPE_STRING, description="Nombre de usuario único para el login."),
+                'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL, description="Correo electrónico único del usuario."),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD, description="Contraseña. Debe cumplir requisitos de complejidad.")
+            }
+        ),
+        responses={
+            HTTPStatus.CREATED: openapi.Response( # 201 Created
+                description="Usuario creado exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Usuario creado exitosamente."),
+                        'user_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="ID del usuario recién creado.")
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response(
+                description="Solicitud incorrecta (e.g., campos faltantes, formato inválido, contraseña no cumple complejidad).",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+            HTTPStatus.CONFLICT: openapi.Response(
+                description="Conflicto de datos (e.g., username o email ya existen).",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+            HTTPStatus.FORBIDDEN: openapi.Response(
+                description="Acceso denegado. Permiso 'user.add_user' requerido.",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(
+                description="Error interno del servidor.",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+        },
+    )
     @authenticate_user(required_permission='user.add_user') #Este permiso es necesario ya que solo el admin podrá crear
     def post(self, request):
         required_fields = ["first_name", "last_name", "username", "email", "password"]
@@ -165,12 +254,78 @@ class UserRC(APIView):
         
 
 class UserRUD(APIView):
+
+
+    permission_classes = [permissions.AllowAny]
     
+
+    @swagger_auto_schema(
+        operation_id="api_user_retrieve_by_id",
+        operation_description="Recupera los datos de un usuario específico por su ID. Requiere permiso 'user.view_user'.",
+        manual_parameters=[
+            openapi.Parameter(
+                name='id',
+                in_=openapi.IN_PATH,
+                description="ID numérico del usuario a recuperar.",
+                required=True,
+                type=openapi.TYPE_INTEGER
+            ),
+        ],
+        security=bearer_security_definition, # Indica que este endpoint requiere el token Bearer
+        responses={
+            HTTPStatus.OK: openapi.Response( # 200 OK
+                description="Datos del usuario recuperados exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'data': user_object_schema
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response( # 400 Bad Request
+                description="El ID de usuario proporcionado no es válido (e.g., no es un número entero).",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="El ID de usuario proporcionado no es válido. Debe ser un número entero."),
+                    }
+                )
+            ),
+            HTTPStatus.FORBIDDEN: openapi.Response( # 403 Forbidden (manejado por decorador @authenticate_user)
+                description="Acceso denegado. No tienes el permiso requerido: 'user.view_user'.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Acceso denegado - No tienes el permiso requerido: 'user.view_user'."),
+                    }
+                )
+            ),
+            HTTPStatus.NOT_FOUND: openapi.Response( # 404 Not Found
+                description="Usuario no encontrado con el ID proporcionado.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Usuario no encontrado."),
+                    }
+                )
+            ),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response( # 500 Internal Server Error
+                description="Error interno del servidor al intentar recuperar los datos del usuario.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Ocurrió un error inesperado al intentar recuperar los datos del usuario."),
+                    }
+                )
+            ),
+        }
+    )
     @authenticate_user(required_permission='user.view_user')
     def get(self, request, id): # 'id' viene de la URL, ej: http://192.168.1.6:8000/api/v1/user-control/2
-        """
-        Devuelve los datos de un usuario específico.
-        """
         try:
             user_id = int(id)
 
@@ -197,6 +352,128 @@ class UserRUD(APIView):
             )
         
 
+
+    @swagger_auto_schema(
+        operation_id="api_user_update_by_id",
+        operation_description="Actualiza la información de un usuario específico por su ID. Todos los campos en el cuerpo son opcionales. Requiere permiso 'user.change_user'.",
+        manual_parameters=[
+            openapi.Parameter(
+                name='id',
+                in_=openapi.IN_PATH,
+                description="ID numérico del usuario a actualizar.",
+                required=True,
+                type=openapi.TYPE_INTEGER
+            ),
+        ],
+        security=bearer_security_definition,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            description="Campos a actualizar del usuario. Todos son opcionales.",
+            properties={
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING, description="Nuevo nombre(s) del usuario."),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING, description="Nuevo apellido(s) del usuario."),
+                'username': openapi.Schema(type=openapi.TYPE_STRING, description="Nuevo nombre de usuario."),
+                'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL, description="Nuevo correo electrónico."),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_PASSWORD, description="Nueva contraseña. Debe cumplir con los requisitos de complejidad."),
+                'is_admin': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Establecer si el usuario es administrador (superuser)."),
+                'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Establecer si la cuenta del usuario está activa.")
+            },
+        ),
+        responses={
+            HTTPStatus.OK: openapi.Response(
+                description="Usuario actualizado exitosamente. También puede devolver un estado 'info' si no se proporcionaron datos diferentes para actualizar (en cuyo caso 'data' podría ser nulo o no estar presente).",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="Estado de la operación.",
+                            example="ok"
+                        ),
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="Mensaje descriptivo del resultado.",
+                            example="Usuario actualizado exitosamente."
+                        ),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description="Datos del usuario actualizado. Puede ser nulo si el 'status' es 'info'.",
+                            properties={
+                                'id': openapi.Schema(
+                                    type=openapi.TYPE_INTEGER,
+                                    description="ID único del usuario.",
+                                    example=5
+                                ),
+                                'username': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    description="Nombre de usuario.",
+                                    example="juan"
+                                ),
+                                'first_name': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    description="Nombre(s) del usuario.",
+                                    example="Juan"
+                                ),
+                                'last_name': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    description="Apellido(s) del usuario.",
+                                    example="Pablo"
+                                ),
+                                'email': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    format=openapi.FORMAT_EMAIL,
+                                    description="Correo electrónico del usuario.",
+                                    example="me@juan.com"
+                                ),
+                                'is_active': openapi.Schema(
+                                    type=openapi.TYPE_BOOLEAN,
+                                    description="Indica si la cuenta del usuario está activa.",
+                                    example=False
+                                ),
+                                'is_admin': openapi.Schema(
+                                    type=openapi.TYPE_BOOLEAN,
+                                    description="Indica si el usuario tiene privilegios de administrador (corresponde a 'is_superuser' en el modelo Django User).",
+                                    example=True
+                                ),
+                                'last_login': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    description="Fecha y hora del último inicio de sesión (Formato: DD-MM-YYYY HH:MM). Es nulo si el usuario nunca ha iniciado sesión o si el valor es nulo en la base de datos.",
+                                    example=None,
+                                    nullable=True
+                                ),
+                                'date_joined': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    description="Fecha y hora de registro del usuario (Formato: DD-MM-YYYY HH:MM).",
+                                    example="25-05-2025 18:10"
+                                )
+                            },
+                            nullable=True 
+                        )
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response(
+                description="Solicitud incorrecta (e.g., ID inválido, JSON inválido, campo vacío, formato de nombre/email/contraseña incorrecto).",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+            HTTPStatus.NOT_FOUND: openapi.Response(
+                description="Usuario no encontrado con el ID proporcionado.",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING, example="Usuario no encontrado.")})
+            ),
+            HTTPStatus.CONFLICT: openapi.Response(
+                description="Conflicto de datos (e.g., username o email ya en uso por otro usuario).",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING, example="El nombre de usuario '...' ya está en uso.")})
+            ),
+            HTTPStatus.FORBIDDEN: openapi.Response( # Manejado por decorador @authenticate_user
+                description="Acceso denegado. No tienes el permiso requerido: 'user.change_user'.",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(
+                description="Error interno del servidor al intentar actualizar el usuario.",
+                schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"), 'message': openapi.Schema(type=openapi.TYPE_STRING)})
+            ),
+        },
+    )
     @authenticate_user(required_permission='user.change_user')
     def put(self, request, id): # 'id' viene de la URL, ej: http://192.168.1.6:8000/api/v1/user-control/2
         try:
@@ -353,6 +630,75 @@ class UserRUD(APIView):
             )
         
 
+    @swagger_auto_schema(
+        operation_id="api_user_delete_by_id",
+        operation_description="Elimina un usuario específico por su ID. Requiere permiso 'user.delete_user'.",
+        manual_parameters=[
+            openapi.Parameter(
+                name='id',
+                in_=openapi.IN_PATH,
+                description="ID numérico del usuario a eliminar.",
+                required=True,
+                type=openapi.TYPE_INTEGER
+            ),
+        ],
+        security=bearer_security_definition, # Indica que este endpoint requiere el token Bearer
+        responses={
+            HTTPStatus.OK: openapi.Response( # 200 OK
+                description="Usuario eliminado exitosamente.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="ok"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Usuario 'nombredeusuario' eliminado exitosamente."),
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response( # 400 Bad Request
+                description="El ID de usuario proporcionado no es válido (e.g., no es un número entero).",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="El ID de usuario proporcionado no es válido. Debe ser un número entero."),
+                    }
+                )
+            ),
+            HTTPStatus.FORBIDDEN: openapi.Response( # 403 Forbidden
+                description="Acceso denegado. No tienes permisos para eliminar este usuario (e.g., intentar eliminar un superusuario, auto-eliminación no permitida, o falta de permiso 'user.delete_user').",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="No tienes permisos para eliminar a un usuario administrador. / No puedes eliminar tu propia cuenta. Contacta a un administrador. / Acceso denegado - No tienes el permiso requerido: 'user.delete_user'."
+                        ),
+                    }
+                )
+            ),
+            HTTPStatus.NOT_FOUND: openapi.Response( # 404 Not Found
+                description="Usuario no encontrado con el ID proporcionado.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Usuario no encontrado."),
+                    }
+                )
+            ),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response( # 500 Internal Server Error
+                description="Error interno del servidor al intentar eliminar el usuario.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Ocurrió un error al intentar eliminar el usuario."),
+                    }
+                )
+            )
+        }
+    )
     @authenticate_user(required_permission='user.delete_user')
     def delete(self, request, id): # 'id' viene de la URL, ej: http://192.168.1.6:8000/api/v1/user-control/2
         try:
@@ -406,6 +752,109 @@ class UserRUD(APIView):
 class Login(APIView):
 
 
+    permission_classes = [permissions.AllowAny]
+    
+
+    @swagger_auto_schema(
+        operation_id="api_login_user",
+        operation_description="Endpoint para iniciar sesión y obtener un token de autenticación.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['email_or_username', 'password'],
+            properties={
+                'email_or_username': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Correo electrónico o nombre de usuario del usuario."
+                ),
+                'password': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_PASSWORD,
+                    description="Contraseña del usuario."
+                ),
+            }
+        ),
+        responses={
+            HTTPStatus.OK: openapi.Response( # 200 OK
+                description="Inicio de sesión exitoso. Devuelve el token y datos básicos del usuario.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="ok"
+                        ),
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="Inicio de sesión exitoso."
+                        ),
+                        'token': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="Token JWT de autenticación.",
+                            example="eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hb...uz7g"
+                        ),
+                        'user': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description="Datos básicos del usuario autenticado.",
+                            properties={
+                                'id': openapi.Schema(
+                                    type=openapi.TYPE_INTEGER,
+                                    description="ID del usuario.",
+                                    example=1
+                                ),
+                                'username': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    description="Nombre de usuario.",
+                                    example="kloquereport"
+                                ),
+                                'email': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    format=openapi.FORMAT_EMAIL,
+                                    description="Correo electrónico del usuario.",
+                                    example="me@kloquereport.com"
+                                ),
+                                'first_name': openapi.Schema(
+                                    type=openapi.TYPE_STRING,
+                                    description="Nombre(s) del usuario. Puede estar vacío.",
+                                    example=""
+                                )
+                            }
+                        )
+                    }
+                )
+            ),
+            HTTPStatus.BAD_REQUEST: openapi.Response( # 400 Bad Request
+                description="Solicitud incorrecta (e.g., campos faltantes o formato inválido).",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="El campo 'X' es requerido."),
+                    }
+                )
+            ),
+            HTTPStatus.UNAUTHORIZED: openapi.Response( # 401 Unauthorized
+                description="Credenciales inválidas, usuario no encontrado o el usuario no está activo.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Credenciales inválidas o usuario no encontrado."),
+                    }
+                )
+            ),
+            HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response( # 500 Internal Server Error
+                description="Error interno al intentar generar el token.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'status': openapi.Schema(type=openapi.TYPE_STRING, example="error"),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="No se pudo generar el token de autenticación."),
+                    }
+                )
+            )
+        },
+        tags=['Autenticación']
+    )
     def post(self, request):
         required_fields = ["email_or_username", "password"]
         error_response = validate_required_fields(request.data, required_fields)

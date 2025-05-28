@@ -48,6 +48,27 @@ INSTALLED_APPS = [
     'incident',
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'Token de autorización JWT. Ingresa "Bearer {token}" (reemplaza {token} con tu token real).'
+        }
+    }
+}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
