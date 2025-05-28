@@ -37,7 +37,7 @@ def get_base_url_with_port():
 
 def validate_incident_data(data):
     errors = {}
-    required_fields = ['incident_type', 'description', 'date', 'status']
+    required_fields = ['incident_type', 'description', 'date']
     for field in required_fields:
         if field not in data or not str(data[field]).strip():
             errors[field] = f"El campo '{field}' es requerido y no puede estar vacío."
@@ -265,29 +265,6 @@ class IncidentRC(APIView):
                 type=openapi.TYPE_STRING,
                 format=openapi.FORMAT_DATE,
                 required=True
-            ),
-            openapi.Parameter(
-                name='status',
-                in_=openapi.IN_FORM,
-                description=f"Estado inicial del incidente. Opciones: {', '.join([s[0] for s in Incident.STATUS_CHOICES])}.",
-                type=openapi.TYPE_STRING,
-                enum=[s[0] for s in Incident.STATUS_CHOICES],
-                required=True
-            ),
-            openapi.Parameter(
-                name='comment',
-                in_=openapi.IN_FORM,
-                description="Comentario inicial (opcional).",
-                type=openapi.TYPE_STRING,
-                required=False
-            ),
-            openapi.Parameter(
-                name='active',
-                in_=openapi.IN_FORM,
-                description="Estado de activación (opcional, por defecto True).",
-                type=openapi.TYPE_BOOLEAN,
-                default=True,
-                required=False
             ),
             openapi.Parameter(
                 name='image',
