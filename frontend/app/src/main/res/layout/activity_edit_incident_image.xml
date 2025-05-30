@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="EDITAR IMAGEN"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#111111"
+            android:layout_marginBottom="24dp" />
+
+        <ImageView
+            android:id="@+id/ivIncidentImage"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:scaleType="centerCrop"
+            android:background="#F2F2F2"
+            android:layout_marginBottom="16dp"/>
+
+        <Button
+            android:id="@+id/btnSelectImage"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Seleccionar imagen"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#03A9F4"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnSaveImage"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Guardar imagen"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#4CAF50"
+            android:fontFamily="sans-serif-medium"/>
+
+        <Button
+            android:id="@+id/btnCancel"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Cancelar"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#6C757D"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginTop="12dp"/>
+    </LinearLayout>
+</ScrollView>

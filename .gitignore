@@ -1,4 +1,12 @@
 env/
-
 .env
 
+# Ignorar todos los __pycache__ 
+backend/**/__pycache__/
+backend/**/migrations/__pycache__/
+
+# Ignorar imagenes 
+backend/uploads/**/*.png
+backend/uploads/**/*.jpg
+backend/uploads/**/*.jpeg
+backend/uploads/**/*.gif

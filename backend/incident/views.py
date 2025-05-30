@@ -861,7 +861,7 @@ class EditImage(APIView):
             HTTPStatus.INTERNAL_SERVER_ERROR: openapi.Response(description="Error interno del servidor.", schema=error_response_schema)
         },
     )
-    @authenticate_user(required_permission='incident.add_incident')
+    @authenticate_user()
     @transaction.atomic
     def post(self, request): # Usamos POST para enviar el archivo y el ID
         incident_id_str = request.data.get("id")
