@@ -49,6 +49,8 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.jwtdecode)
     implementation(libs.security.crypto)
+    implementation(libs.glide)
+    implementation(libs.glide.okhttp)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

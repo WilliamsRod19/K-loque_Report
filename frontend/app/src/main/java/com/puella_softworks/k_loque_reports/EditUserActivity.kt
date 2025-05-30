@@ -33,7 +33,6 @@ class EditUserActivity : AppCompatActivity() {
             return
         }
 
-        // Verificar si es el usuario actual
         val token = SessionManager.getToken(this)
         val jwt = JWT(token!!)
         val currentUserId = jwt.getClaim("id").asInt() ?: 0
@@ -103,7 +102,6 @@ class EditUserActivity : AppCompatActivity() {
         val etPassword = findViewById<EditText>(R.id.etPassword)
         val etConfirmPassword = findViewById<EditText>(R.id.etConfirmPassword)
 
-        // Validar nombre (no números)
         if (etFirstName.text.toString().trim().isEmpty()) {
             etFirstName.error = "El nombre es requerido"
             return false
@@ -112,7 +110,6 @@ class EditUserActivity : AppCompatActivity() {
             return false
         }
 
-        // Validar apellido (no números)
         if (etLastName.text.toString().trim().isEmpty()) {
             etLastName.error = "El apellido es requerido"
             return false
@@ -121,7 +118,6 @@ class EditUserActivity : AppCompatActivity() {
             return false
         }
 
-        // Validar username (no espacios)
         if (etUsername.text.toString().trim().isEmpty()) {
             etUsername.error = "El nombre de usuario es requerido"
             return false
@@ -130,7 +126,6 @@ class EditUserActivity : AppCompatActivity() {
             return false
         }
 
-        // Validar email
         if (etEmail.text.toString().trim().isEmpty()) {
             etEmail.error = "El email es requerido"
             return false
@@ -139,7 +134,6 @@ class EditUserActivity : AppCompatActivity() {
             return false
         }
 
-        // Validar contraseña solo si se quiere cambiar
         val password = etPassword.text.toString()
         if (password.isNotEmpty()) {
             if (!isValidPassword(password)) {

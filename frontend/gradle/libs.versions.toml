@@ -12,7 +12,9 @@ constraintlayout = "2.2.1"
 #dependencias para la api
 retrofit = "2.9.0"
 jwtdecode = "2.0.2"
-securityCrypto = "1.1.0-alpha06"
+securityCrypto = "1.1.0-alpha07"
+#Librerías de imagenes:
+glide = "4.16.0"
 
 [libraries]
 # dependencias para consumir la api
@@ -21,6 +23,10 @@ retrofit-converter-gson = { group = "com.squareup.retrofit2", name = "converter-
 jwtdecode = { group = "com.auth0.android", name = "jwtdecode", version.ref = "jwtdecode" }
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version = "4.12.0" }
+# dependencias para las imagenes:
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
+glide-okhttp = { group = "com.github.bumptech.glide", name = "okhttp3-integration", version.ref = "glide" }
 
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

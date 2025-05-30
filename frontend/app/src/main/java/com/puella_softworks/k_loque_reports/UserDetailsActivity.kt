@@ -4,13 +4,16 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.auth0.android.jwt.JWT
 import com.puella_softworks.k_loque_reports.classes.RetrofitClient
+import com.puella_softworks.k_loque_reports.classes.SessionManager
 import com.puella_softworks.k_loque_reports.models.UserData
 import com.puella_softworks.k_loque_reports.models.UserDetailResponse
 import retrofit2.Call
@@ -20,6 +23,7 @@ import retrofit2.Response
 class UserDetailsActivity : AppCompatActivity() {
 
     private var userId: Int = -1
+    private var isCurrentUser = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,6 +36,11 @@ class UserDetailsActivity : AppCompatActivity() {
             return
         }
 
+        val token = SessionManager.getToken(this)
+        val jwt = JWT(token!!)
+        val currentUserId = jwt.getClaim("id").asInt() ?: 0
+        isCurrentUser = userId == currentUserId
+
         val btnEditUser = findViewById<Button>(R.id.btnEditUser)
         btnEditUser.setOnClickListener {
             val intent = Intent(this, EditUserActivity::class.java)
@@ -41,7 +50,15 @@ class UserDetailsActivity : AppCompatActivity() {
 
         val btnDeleteUser = findViewById<Button>(R.id.btnDeleteUser)
         btnDeleteUser.setOnClickListener {
-            showDeleteConfirmationDialog()
+            if (isCurrentUser) {
+                Toast.makeText(this, "No puedes eliminar tu propio usuario", Toast.LENGTH_LONG).show()
+            } else {
+                showDeleteConfirmationDialog()
+            }
+        }
+
+        if (isCurrentUser) {
+            btnDeleteUser.visibility = View.GONE
         }
 
         loadUserDetails(userId)
@@ -88,7 +105,6 @@ class UserDetailsActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
 
-                    // Regresar a la lista de usuarios y actualizar
                     setResult(RESULT_OK)
                     finish()
                 } else {
