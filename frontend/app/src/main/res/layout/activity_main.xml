@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="#FFFFFF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/tvWelcome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#111111"
+            android:layout_marginBottom="24dp" />
+
+        <LinearLayout
+            android:id="@+id/adminButtons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnUsersPanel"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Ver panel de usuarios"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#007BFF"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/btnAllTickets"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Ver todos los tickets"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#007BFF"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/btnProfile"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Ver tu perfil"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#007BFF"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/btnApiPanel"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Ver panel de API"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#007BFF"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="12dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/userButtons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnTickets"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Ver tickets"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#007BFF"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/btnUserProfile"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Ver perfil"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#007BFF"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="12dp"/>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Cerrar sesión"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#DC3545"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginTop="24dp"/>
+    </LinearLayout>
+</ScrollView>
