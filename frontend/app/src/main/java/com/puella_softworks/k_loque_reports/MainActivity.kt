@@ -49,7 +49,6 @@ class MainActivity : AppCompatActivity() {
 
                 findViewById<Button>(R.id.btnApiPanel).setOnClickListener {
                     try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://192.168.0.10:8000/admin/"))
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://turip ip:8000/admin/"))
                         startActivity(intent)
                     } catch (e: Exception) {
