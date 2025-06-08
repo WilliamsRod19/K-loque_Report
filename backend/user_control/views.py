@@ -324,7 +324,7 @@ class UserRUD(APIView):
             ),
         }
     )
-    @authenticate_user(required_permission='user.view_user')
+    @authenticate_user()
     def get(self, request, id): # 'id' viene de la URL, ej: http://192.168.1.6:8000/api/v1/user-control/2
         try:
             user_id = int(id)
