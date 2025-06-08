@@ -11,6 +11,7 @@ import com.puella_softworks.k_loque_reports.models.UserDetailResponse
 import com.puella_softworks.k_loque_reports.models.UserResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -79,6 +80,16 @@ interface ApiService {
         @Path("id") incidentId: Int,
         @Body request: SoftDeleteRequest
     ): Call<Void>
+
+    //Métodos para extraer los reportes:
+    @GET("api/v1/incident/active-reports")
+    fun getActiveReports(): Call<ResponseBody>
+
+    @GET("api/v1/incident/specific-report/{id}")
+    fun getSpecificReport(@Path("id") incidentId: Int): Call<ResponseBody>
+
+    @GET("api/v1/incident/archive-report/{id}")
+    fun getArchiveReport(@Path("id") incidentId: Int): Call<ResponseBody>
 }
 
 data class LoginRequest(

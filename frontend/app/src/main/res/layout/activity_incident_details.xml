@@ -239,6 +239,15 @@
             android:fontFamily="sans-serif-medium"/>
 
         <Button
+            android:id="@+id/btnDownload"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Descargar en pdf"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#00BCD4"
+            android:fontFamily="sans-serif-medium"/>
+
+        <Button
             android:id="@+id/btnBack"
             android:layout_width="match_parent"
             android:layout_height="48dp"
