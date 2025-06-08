@@ -8,11 +8,13 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.auth0.android.jwt.JWT
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
@@ -23,16 +25,23 @@ import com.puella_softworks.k_loque_reports.classes.SessionManager
 import com.puella_softworks.k_loque_reports.models.Incident
 import com.puella_softworks.k_loque_reports.models.IncidentDetailResponse
 import com.puella_softworks.k_loque_reports.models.SoftDeleteRequest
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.io.File
+import java.io.FileOutputStream
 import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class IncidentDetailsActivity : AppCompatActivity() {
 
     private var incidentId: Int = -1
     private var imageUrl: String? = null
     private var isAdmin: Boolean = false
+    private var incidentStatus: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,6 +66,7 @@ class IncidentDetailsActivity : AppCompatActivity() {
         val btnEdit = findViewById<Button>(R.id.btnEdit)
         val btnSoftDelete = findViewById<Button>(R.id.btnSoftDeleteIncident)
         val btnDeleteIncident = findViewById<Button>(R.id.btnDeleteIncident)
+        val btnDownload = findViewById<Button>(R.id.btnDownload)
 
         btnEdit.setOnClickListener {
             showEditOptionsDialog()
@@ -72,7 +82,9 @@ class IncidentDetailsActivity : AppCompatActivity() {
         btnDeleteIncident.setOnClickListener {
             showDeleteConfirmationDialog()
         }
-
+        btnDownload.setOnClickListener {
+            downloadSpecificReport()
+        }
         findViewById<Button>(R.id.btnBack).setOnClickListener {
             finish()
         }
@@ -162,6 +174,7 @@ class IncidentDetailsActivity : AppCompatActivity() {
         }
 
         updateStatusColor(incident.status)
+        incidentStatus = incident.status
     }
 
     private fun updateStatusColor(status: String) {
@@ -258,6 +271,7 @@ class IncidentDetailsActivity : AppCompatActivity() {
             .create()
             .show()
     }
+
     //Para después
     private fun showReactivateConfirmationDialog() {
         AlertDialog.Builder(this)
@@ -327,6 +341,89 @@ class IncidentDetailsActivity : AppCompatActivity() {
                 Toast.makeText(this@IncidentDetailsActivity, "Error de conexión: ${t.message}", Toast.LENGTH_SHORT).show()
             }
         })
+    }
+
+    private fun downloadSpecificReport() {
+        val loadingToast = Toast.makeText(this, "Generando reporte...", Toast.LENGTH_SHORT)
+        loadingToast.show()
+        if (incidentStatus.lowercase() != "resuelto") {
+            RetrofitClient.instance.getSpecificReport(incidentId).enqueue(object : Callback<ResponseBody> {
+                override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
+                    loadingToast.cancel()
+
+                    if (response.isSuccessful && response.body() != null) {
+                        saveReportToFile(response.body()!!)
+                        Toast.makeText(this@IncidentDetailsActivity, "Reporte descargado", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@IncidentDetailsActivity, "Error al generar el reporte", Toast.LENGTH_SHORT).show()
+                        Log.e("IncidentDetails", "Error en la respuesta: ${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                    loadingToast.cancel()
+                    Toast.makeText(this@IncidentDetailsActivity, "Error de conexión: ${t.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("IncidentDetails", "Error en la descarga: ${t.message}")
+                }
+            })
+        }else{
+            RetrofitClient.instance.getArchiveReport(incidentId).enqueue(object : Callback<ResponseBody> {
+                override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
+                    loadingToast.cancel()
+
+                    if (response.isSuccessful && response.body() != null) {
+                        saveReportToFile(response.body()!!)
+                        Toast.makeText(this@IncidentDetailsActivity, "Reporte descargado", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@IncidentDetailsActivity, "Error al generar el reporte", Toast.LENGTH_SHORT).show()
+                        Log.e("IncidentDetails", "Error en la respuesta: ${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                    loadingToast.cancel()
+                    Toast.makeText(this@IncidentDetailsActivity, "Error de conexión: ${t.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("IncidentDetails", "Error en la descarga: ${t.message}")
+                }
+            })
+        }
+
+    }
+
+    private fun saveReportToFile(body: ResponseBody) {
+        try {
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val fileName = "Reporte_Incidente_${incidentId}_$timeStamp.pdf"
+
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, fileName)
+
+            val inputStream = body.byteStream()
+            val outputStream = FileOutputStream(file)
+
+            inputStream.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            val fileUri = FileProvider.getUriForFile(this, "com.puella_softworks.k_loque_reports.provider", file)
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(fileUri, "application/pdf")
+                flags = Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_GRANT_READ_URI_PERMISSION
+            }
+
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "No hay aplicación para ver PDFs", Toast.LENGTH_SHORT).show()
+            }
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al guardar el archivo", Toast.LENGTH_SHORT).show()
+            Log.e("IncidentDetails", "Error al guardar PDF: ${e.message}")
+        }
     }
 
     companion object {

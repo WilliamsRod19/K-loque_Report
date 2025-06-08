@@ -49,10 +49,10 @@
                 android:layout_marginBottom="12dp"/>
 
             <Button
-                android:id="@+id/btnProfile"
+                android:id="@+id/btnDownloadReports"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:text="Ver tu perfil"
+                android:text="Descargar reporte de todos los tickets"
                 android:textColor="#FFFFFF"
                 android:backgroundTint="#007BFF"
                 android:fontFamily="sans-serif-medium"
@@ -95,6 +95,17 @@
                 android:backgroundTint="#007BFF"
                 android:fontFamily="sans-serif-medium"
                 android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/btnDownloadUserReports"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Descarga un reporte de tus tickets"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#007BFF"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="12dp"/>
+
         </LinearLayout>
 
         <Button
