@@ -24,6 +24,17 @@ from rest_framework import permissions
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_yasg import utils
 
+from django.db.models import Q
+
+# ReportLab
+import io
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+
 bearer_security_definition = [{'Bearer': []}]
 
 
@@ -928,3 +939,233 @@ class EditImage(APIView):
 
         except Exception as e:
             return JsonResponse({"status": "error", "message": f"Error al actualizar la imagen del incidente: {str(e)}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+class ActiveReports(APIView):
+
+    permission_classes = [permissions.AllowAny]
+
+    def draw_header(self, canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica-Bold', 16)
+        header_y_position = doc.pagesize[1] - 0.75 * inch
+        canvas.drawCentredString(letter[0] / 2.0, header_y_position, "Reporte de Incidentes Activos")
+        canvas.setFont('Helvetica', 9)
+        canvas.drawString(inch, 0.75 * inch, f"Página {doc.page}")
+        canvas.restoreState()
+
+    @authenticate_user()
+    def get(self, request):
+        base_query = Incident.objects.filter(
+            status=Incident.STATUS_ACTIVE, 
+            active=True
+        )
+
+        if request.user.is_superuser:
+            incidents_to_report = base_query.order_by('created_at')
+        else:
+            incidents_to_report = base_query.filter(created_by=request.user.id).order_by('created_at')
+
+        if not incidents_to_report.exists():
+            return JsonResponse({"status": "info", "message": "No hay incidentes activos para mostrar en el reporte."}, status=HTTPStatus.OK)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=1.2 * inch, rightMargin=72, leftMargin=72, bottomMargin=72)
+        styles = getSampleStyleSheet()
+
+        story = []
+        
+        for incident in incidents_to_report:
+            story.append(Paragraph(f"ID: {incident.id} - {incident.incident_type}", styles['h2']))
+            story.append(Spacer(1, 0.1 * inch))
+
+            created_by_name = get_user_first_name_by_id(incident.created_by) or "N/A"
+            details_data = [
+                ['Fecha:', str(incident.date)],
+                ['Reportado Por:', created_by_name],
+                ['Descripción:', Paragraph(incident.description, styles['BodyText'])]
+            ]
+            
+            details_table = Table(details_data, colWidths=[1.2*inch, 5.3*inch])
+            details_table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(details_table)
+            story.append(Spacer(1, 0.2 * inch))
+
+            if incident.image:
+                image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
+                if os.path.exists(image_path):
+                    try:
+                        img = Image(image_path, width=3*inch, height=2.25*inch, kind='proportional')
+                        story.append(img)
+                    except Exception as e:
+                        story.append(Paragraph(f"Error al cargar imagen: {e}", styles['Italic']))
+                else:
+                    story.append(Paragraph("Imagen no encontrada en el servidor.", styles['Italic']))
+
+            story.append(Spacer(1, 0.5 * inch))
+
+        doc.build(story, onFirstPage=self.draw_header, onLaterPages=self.draw_header)
+
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="reporte_incidentes_activos.pdf"'
+        return response
+
+
+class SpecificReport(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def draw_header(self, canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica-Bold', 16)
+        header_y_position = doc.pagesize[1] - 0.75 * inch
+        canvas.drawCentredString(letter[0] / 2.0, header_y_position, "Reporte de Incidente Específico")
+        canvas.setFont('Helvetica', 9)
+        canvas.drawString(inch, 0.75 * inch, f"Página {doc.page}")
+        canvas.restoreState()
+
+    @authenticate_user()
+    def get(self, request, id):
+        try:
+            incident = Incident.objects.get(
+                pk=id, 
+                status=Incident.STATUS_ACTIVE, 
+                active=True
+            )
+        except Incident.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Incidente activo con el ID proporcionado no encontrado."}, status=HTTPStatus.NOT_FOUND)
+
+        if not request.user.is_superuser and incident.created_by != request.user.id:
+            return JsonResponse({"status": "error", "message": "No tienes permiso para generar un reporte de este incidente."}, status=HTTPStatus.FORBIDDEN)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=1.2 * inch, rightMargin=72, leftMargin=72, bottomMargin=72)
+        styles = getSampleStyleSheet()
+        story = []
+
+        story.append(Paragraph(f"Detalle del Incidente", styles['h1']))
+        story.append(Spacer(1, 0.2 * inch))
+
+        data = [
+            ["ID Incidente:", Paragraph(str(incident.id), styles['BodyText'])],
+            ["Tipo de Incidente:", Paragraph(incident.incident_type, styles['BodyText'])],
+            ["Fecha del Incidente:", str(incident.date)],
+            ["Estado:", incident.get_status_display()],
+            ["Descripción:", Paragraph(incident.description, styles['BodyText'])],
+            ["Reportado por:", get_user_first_name_by_id(incident.created_by)],
+            ["Fecha de Creación:", incident.created_at.strftime('%Y-%m-%d %H:%M:%S')],
+        ]
+
+        table = Table(data, colWidths=[1.5*inch, 5.5*inch])
+        table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'), ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6), ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(table)
+        story.append(Spacer(1, 0.2 * inch))
+
+        if incident.image:
+            image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
+            if os.path.exists(image_path):
+                story.append(Paragraph("Imagen Adjunta:", styles['h2']))
+                try:
+                    img = Image(image_path, width=4*inch, height=3*inch, kind='proportional')
+                    story.append(img)
+                except Exception as e:
+                    story.append(Paragraph(f"No se pudo cargar la imagen: {e}", styles['BodyText']))
+            else:
+                 story.append(Paragraph("La imagen adjunta no fue encontrada en el servidor.", styles['BodyText']))
+
+        doc.build(story, onFirstPage=self.draw_header, onLaterPages=self.draw_header)
+
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="reporte_incidente_{id}.pdf"'
+        return response
+    
+
+class ArchivedReport(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def draw_header(self, canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica-Bold', 16)
+        header_y_position = doc.pagesize[1] - 0.75 * inch
+        canvas.drawCentredString(letter[0] / 2.0, header_y_position, "Reporte de Incidente Archivado")
+        canvas.setFont('Helvetica', 9)
+        canvas.drawString(inch, 0.75 * inch, f"Página {doc.page}")
+        canvas.restoreState()
+
+    @authenticate_user()
+    def get(self, request, id):
+        try:
+            incident = Incident.objects.get(
+                Q(status=Incident.STATUS_RESOLVED) | Q(active=False),
+                pk=id
+            )
+        except Incident.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Incidente resuelto o inactivo con el ID proporcionado no encontrado."}, status=HTTPStatus.NOT_FOUND)
+
+        if not request.user.is_superuser and incident.created_by != request.user.id:
+            return JsonResponse({"status": "error", "message": "No tienes permiso para generar un reporte de este incidente."}, status=HTTPStatus.FORBIDDEN)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=1.2 * inch, rightMargin=72, leftMargin=72, bottomMargin=72)
+        styles = getSampleStyleSheet()
+        story = []
+
+        story.append(Paragraph(f"Detalle del Incidente Archivado", styles['h1']))
+        story.append(Spacer(1, 0.2 * inch))
+
+        data = [
+            ["ID Incidente:", Paragraph(str(incident.id), styles['BodyText'])],
+            ["Tipo de Incidente:", Paragraph(incident.incident_type, styles['BodyText'])],
+            ["Fecha del Incidente:", str(incident.date)],
+            ["Descripción:", Paragraph(incident.description, styles['BodyText'])],
+            ["Reportado por:", get_user_first_name_by_id(incident.created_by)],
+            ["Fecha de Creación:", incident.created_at.strftime('%Y-%m-%d %H:%M:%S')],
+        ]
+
+        if incident.status == Incident.STATUS_RESOLVED:
+            data.append(["Estado Final:", incident.get_status_display()])
+            data.append(["Comentario de Solución:", Paragraph(incident.comment or "N/A", styles['BodyText'])])
+            data.append(["Resuelto/Modificado por:", get_user_first_name_by_id(incident.modified_by)])
+            data.append(["Fecha de Actualización:", incident.updated_at.strftime('%Y-%m-%d %H:%M:%S')])
+        
+        if not incident.active:
+             data.append(["Visibilidad:", Paragraph("Inactivo (Oculto en listados activos)", styles['BodyText'])])
+
+
+        table = Table(data, colWidths=[1.8*inch, 5.2*inch])
+        table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'), ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6), ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(table)
+        story.append(Spacer(1, 0.2 * inch))
+
+        if incident.image:
+            image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
+            if os.path.exists(image_path):
+                story.append(Paragraph("Imagen Adjunta:", styles['h2']))
+                try:
+                    img = Image(image_path, width=4*inch, height=3*inch, kind='proportional')
+                    story.append(img)
+                except Exception as e:
+                    story.append(Paragraph(f"No se pudo cargar la imagen: {e}", styles['BodyText']))
+            else:
+                 story.append(Paragraph("La imagen adjunta no fue encontrada en el servidor.", styles['BodyText']))
+
+        doc.build(story, onFirstPage=self.draw_header, onLaterPages=self.draw_header)
+
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="reporte_archivado_{id}.pdf"'
+        return response
