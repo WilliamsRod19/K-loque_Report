@@ -12,7 +12,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Login"
+        android:text="K-Loque Reports"
         android:textSize="26sp"
         android:textStyle="bold"
         android:textColor="#111111"
@@ -40,7 +40,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:hint="Username"
+            android:hint="Usuario o correo"
             android:textColor="#000000"
             android:textColorHint="#888888"
             android:background="@android:color/transparent"
@@ -69,22 +69,13 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:hint="Password"
+            android:hint="Contraseña"
             android:textColor="#000000"
             android:textColorHint="#888888"
             android:background="@android:color/transparent"
             android:inputType="textPassword"/>
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/showPassword"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Show Password"
-        android:textColor="#007BFF"
-        android:textSize="14sp"
-        android:layout_marginBottom="20dp"
-        android:layout_gravity="end"/>
 
     <Button
         android:id="@+id/btnLogin"
