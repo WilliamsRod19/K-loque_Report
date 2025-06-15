@@ -79,9 +79,10 @@ def get_incident_image_url(image_filename: str) -> str:
     if not image_filename:
         return ""
     
+    base_server_url = get_base_url_with_port()
     base_url = os.getenv("BASE_URL", "http://localhost")
     image_path_prefix = "/uploads/incident_images/" 
-    full_image_url = f"{base_url}{image_path_prefix}{image_filename}"
+    full_image_url = f"https://{base_url}{image_path_prefix}{image_filename}"
  
     return full_image_url
 
