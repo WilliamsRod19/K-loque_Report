@@ -41,7 +41,7 @@ Configuraciones generales del proyecto:
 - Crear una base de datos en MySQL:
   - `CREATE DATABASE kloque_report_db;`
   - `USE kloque_report_db;`
-- Crear un archivo .env dentro de backend y ponerle las credenciales (seguir el ejemplo de .env.example)
+- Crear un archivo `.env` dentro de backend al mismo nivel de `.env.example` y ponerle las credenciales (seguir el ejemplo de `.env.example`)
 
 ---
 
@@ -53,7 +53,7 @@ Configuraciones generales del proyecto:
   3. `python manage.py migrate`
 - Crear un super usuario:
   1. `python manage.py createsuperuser`
-  2. Ponerle nombre de usuario, correo y contraseñas genéricos (juan, j@j.com, 123)
+  2. Ponerle nombre de usuario, correo y contraseñas genéricos (`juan`, `j@j.com`, `123`)
   3. Dirá que la contraseña es débil pero dejenlo pasar (Y)
 
 ---
