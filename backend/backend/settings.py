@@ -16,6 +16,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+
+# --- INICIO DE DEPURACIÓN DE VARIABLES DE ENTORNO ---
+print(f"DEBUG DB_NAME: {os.getenv('MYSQL_DATABASE')}")
+print(f"DEBUG DB_USER: {os.getenv('MYSQLUSER')}")
+print(f"DEBUG DB_PASSWORD: {os.getenv('MYSQL_ROOT_PASSWORD')}")
+print(f"DEBUG DB_HOST: {os.getenv('MYSQLHOST')}")
+print(f"DEBUG DB_PORT: {os.getenv('MYSQLPORT')}")
+# --- FIN DE DEPURACIÓN ---
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
