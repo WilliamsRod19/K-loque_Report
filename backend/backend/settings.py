@@ -120,7 +120,7 @@ DATABASES = {
         'HOST': os.getenv('MYSQLHOST'),
         'PORT': os.getenv('MYSQLPORT'),
         'OPTIONS': {
-            'autocommit': True
+            'autocommit': True,
             'init_command': "SET default_storage_engine=INNODB;"
         },
         'ATOMIC_REQUESTS': True,
