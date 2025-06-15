@@ -24,6 +24,21 @@ print(f"DEBUG DB_USER: {os.getenv('MYSQLUSER')}")
 print(f"DEBUG DB_PASSWORD: {os.getenv('MYSQL_ROOT_PASSWORD')}")
 print(f"DEBUG DB_HOST: {os.getenv('MYSQLHOST')}")
 print(f"DEBUG DB_PORT: {os.getenv('MYSQLPORT')}")
+# --- INICIO DE DEPURACIÓN DE VARIABLES DE ENTORNO PERSONALIZADAS ---
+print(f"DEBUG ENV - DATABASE_SERVER: {os.getenv('DATABASE_SERVER')}")
+print(f"DEBUG ENV - DATABASE_USER: {os.getenv('DATABASE_USER')}")
+print(f"DEBUG ENV - DATABASE_PASSWORD: {os.getenv('DATABASE_PASSWORD')}")
+print(f"DEBUG ENV - DATABASE_PORT: {os.getenv('DATABASE_PORT')}")
+print(f"DEBUG ENV - DATABASE_BD: {os.getenv('DATABASE_BD')}")
+print(f"DEBUG ENV - DEBUG: {os.getenv('DEBUG')}")
+print(f"DEBUG ENV - BASE_URL: {os.getenv('BASE_URL')}")
+print(f"DEBUG ENV - BASE_URL_BACKEND_PORT: {os.getenv('BASE_URL_BACKEND_PORT')}")
+print(f"DEBUG ENV - SMTP_SERVER: {os.getenv('SMTP_SERVER')}")
+print(f"DEBUG ENV - SMTP_PORT: {os.getenv('SMTP_PORT')}")
+print(f"DEBUG ENV - SMTP_BY: {os.getenv('SMTP_BY')}")
+print(f"DEBUG ENV - SMTP_USER: {os.getenv('SMTP_USER')}")
+print(f"DEBUG ENV - SMTP_PASSWORD: {os.getenv('SMTP_PASSWORD')}")
+# --- FIN DE DEPURACIÓN ---
 # --- FIN DE DEPURACIÓN ---
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
