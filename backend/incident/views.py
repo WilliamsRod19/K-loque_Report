@@ -1097,7 +1097,7 @@ class SpecificReport(APIView):
         if incident.image:
             image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
             if os.path.exists(image_path):
-                story.append(Paragraph("Imagen Adjunta:", styles['h2']))
+                story.append(Paragraph(f"Imagen Adjunta: {image_path}", styles['h2']))
                 try:
                     img = Image(image_path, width=4*inch, height=3*inch, kind='proportional')
                     story.append(img)
