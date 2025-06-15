@@ -142,4 +142,3 @@ Para volver a usar el backend es necesario activar el entorno virtual y correr e
 
 ---
 
-## PASO OPCIONAL ():
