@@ -1,5 +1,6 @@
 package com.puella_softworks.k_loque_reports
 
+import android.app.Activity
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -140,6 +141,7 @@ class CreateUserActivity : AppCompatActivity() {
                         "Usuario creado exitosamente",
                         Toast.LENGTH_SHORT
                     ).show()
+                    setResult(Activity.RESULT_OK)
                     finish()
                 } else {
                     Toast.makeText(
