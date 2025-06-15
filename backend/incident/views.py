@@ -1167,6 +1167,8 @@ class ArchivedReport(APIView):
             image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
             try:
                 print(f"DEBUG imagen: {image_path}")
+            except Exception as e:
+                print(f"DEBUG imagen: {image_path.toString()}")
 
             if os.path.exists(image_path):
                 story.append(Paragraph("Imagen Adjunta:", styles['h2']))
