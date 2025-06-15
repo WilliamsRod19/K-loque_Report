@@ -52,9 +52,8 @@ class IncidentsActivity : AppCompatActivity() {
                 }
             )
 
-            val addIncident = findViewById<FloatingActionButton>(R.id.addIncident)
-            addIncident.setOnClickListener {
-                startActivity(Intent(this, CreateIncidentActivity::class.java))
+            findViewById<FloatingActionButton>(R.id.addIncident).setOnClickListener {
+                startActivityForResult(Intent(this, CreateIncidentActivity::class.java), 1)
             }
 
             findViewById<Button>(R.id.btnBack).setOnClickListener { finish() }

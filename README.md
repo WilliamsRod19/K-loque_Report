@@ -76,3 +76,70 @@ A partir de aquí tenemos la libertad de hacer lo que sea, como primer paso reco
 ---
 
 Para volver a usar el backend es necesario activar el entorno virtual y correr el servidor
+
+
+
+
+# PASOS PARA EJECUTAR EL FRONTEND DE MANERA LOCAL:
+**Necesario tener:**
+
+- Android Studio Versión => Android Studio Meerkat Feature Drop | 2024.3.2 Patch (Recomendado).
+- Dispositivo android versión 10 o mayor.
+- Vysor (Opcional).
+
+---
+
+## PASO OPCIONAL (EN CASO DE TENER UNA VERSIÓN ANTIGUA DE ANDROID STUDIO):
+  - Abrir el proyecto.
+  - Buscar el archivo libs.versions.toml en la carpeta "gradle/libs.versions.toml" y cambiar la versión agp = "8.10.1" a la del android studio del entorno local.
+
+---
+
+## PASO 1:
+
+- Abrir el proyecto:
+  - Abrir Android Studio.
+  - Darle a la opción "Open".
+  - Buscar el proyecto que está ubicado en la carpeta del repositorio \K-Loque_Report\frontend
+  - Abrir y selccionar la opción de "Trust Project"
+
+---
+
+## PASO 2:
+
+- Actualizar dependencias:
+  - Dirijirse a la pestaña "File".
+  - Dar clic en la opción "Sync Project with Gradle Files".
+
+---
+
+## PASO 3:
+
+- Actualizar direcciones y politicas de seguridad de dominio:
+  1 MainActivity.kt:
+    - Dentro del proyecto, buscar el archivo MainActivity.kt, ubicado en la carpeta "com/puella_softworks/k_loque_reports/MainActivity.kt".
+    - Dirigirse a la línea de código 64 y ubicar la ruta "**http://GenshinImpact/admin/**".
+    - Cambiar "_GenshinImpact_" por la dirección local o de dominio, por ejemplo usando la ruta "_127.0.0.1:8000_", el resultado sería el siguiente "**http://127.0.0.1:8000/admin**".
+
+  2 RetrofitClient.kt:
+    - Dentro del proyecto, buscar el archivo RetrofitClient.kt, ubicado en la carpeta "com/puella_softworks/k_loque_reports/classes/RetrofitClient.kt".
+    - Dirigirse a la línea de código 9 y ubicar la ruta "**http://GenshinImpact/**".
+    - Cambiar "_GenshinImpact_" por la dirección local o de dominio, por ejemplo usando la ruta "_127.0.0.1:8000_", el resultado sería el siguiente "**http://127.0.0.1:8000/**".
+
+  3 network_security_config.xml:
+    - Dentro del proyecto, buscar el archivo network_security_config.xml, ubicado en la carpeta "xml/network_security_config.xml".
+    - Ubicar la línea de código 5 e identificar el dominio: "**<domain includeSubdomains="true">GenshinImpact</domain>**"
+    - Cambiar "_GenshinImpact_" por la dirección local o de dominio, por ejemplo usando la ruta "_127.0.0.1:8000_", el resultado sería el siguiente "**<domain includeSubdomains="true">127.0.0.1</domain>**".
+
+
+---
+
+## PASO 4:
+
+- Ejecutar proyecto:
+  - Conectar el celular con depuración USB o inalámbrica activa (Opcional).
+  - Darle al botón de "Run App" o presionar la combinación de teclas **Shift + F10**.
+
+---
+
+## PASO OPCIONAL ():
