@@ -54,6 +54,9 @@ SECRET_KEY = 'django-insecure-+s5%nby87nn*sy1f(nvz#6s0!f)vn7g9s+qfs0ax5nz&$7(i1#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG')
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+
 ALLOWED_HOSTS = [os.getenv('BASE_URL'), '*']
 
 
@@ -66,6 +69,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'whitenoise.runserver_nostatic',
     'drf_yasg',
     'rest_framework',
     'corsheaders',
@@ -96,6 +100,7 @@ SWAGGER_SETTINGS = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -197,3 +202,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads')
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

@@ -10,3 +10,6 @@ backend/uploads/**/*.png
 backend/uploads/**/*.jpg
 backend/uploads/**/*.jpeg
 backend/uploads/**/*.gif
+
+
+backend/staticfiles/
