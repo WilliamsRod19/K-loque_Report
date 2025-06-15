@@ -1,1 +1,1 @@
-web: python manage.py migrate && echo "DEBUG: RAILWAY_PORT is $PORT" && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT
+web: "echo \"DEBUG: RAILWAY_PORT is $PORT\" && python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT"
