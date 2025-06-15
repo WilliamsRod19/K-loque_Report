@@ -204,4 +204,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-CSRF_TRUSTED_ORIGINS = ['*', 'https://k-loquereport-production-217d.up.railway.app/']
+CSRF_TRUSTED_ORIGINS = ['http://', 'https://', 'https://k-loquereport-production-217d.up.railway.app/']
