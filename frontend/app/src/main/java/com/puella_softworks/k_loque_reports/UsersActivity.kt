@@ -26,7 +26,7 @@ class UsersActivity : AppCompatActivity() {
 
         val addUser = findViewById<FloatingActionButton>(R.id.addUser)
         addUser.setOnClickListener {
-            startActivity(Intent(this, CreateUserActivity::class.java))
+            startActivityForResult(Intent(this, CreateUserActivity::class.java), 1)
         }
 
         val rvUsers = findViewById<RecyclerView>(R.id.rvUsers)
