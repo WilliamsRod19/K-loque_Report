@@ -85,6 +85,31 @@ def get_incident_image_url(image_filename: str) -> str:
  
     return full_image_url
 
+def incident_image(id):
+    try:
+        incident = Incident.objects.get(
+            Q(status=Incident.STATUS_RESOLVED) | Q(active=False),
+            pk=id
+        )
+    except Incident.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Incidente resuelto o inactivo con el ID proporcionado no encontrado."}, status=HTTPStatus.NOT_FOUND)
+
+    image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
+
+    return image_path if os.path.exists(image_path) else None
+
+
+def get_incident_image_url_personalize(id) -> str:
+    try:
+        incident = Incident.objects.get(
+            Q(status=Incident.STATUS_RESOLVED) | Q(active=False),
+            pk=id
+        )
+    except Incident.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Incidente resuelto o inactivo con el ID proporcionado no encontrado."}, status=HTTPStatus.NOT_FOUND)
+
+
+
 def get_user_first_name_by_id(user_id):
     """
     Obtiene el first_name de un usuario dado su ID.
@@ -431,7 +456,7 @@ class IncidentRUD(APIView):
                 {"status": "error", "message": "No tienes permiso para ver este incidente o no existe."}, status=HTTPStatus.FORBIDDEN 
             )
 
-        image_url = incident_image(incident.id) if incident.image else None
+        image_url = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
         created_by_name = get_user_first_name_by_id(incident.created_by)
         modified_by_name = get_user_first_name_by_id(incident.modified_by)
 
@@ -1169,18 +1194,3 @@ class ArchivedReport(APIView):
         response = HttpResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="reporte_archivado_{id}.pdf"'
         return response
-
-
-
-def incident_image(id):
-    try:
-        incident = Incident.objects.get(
-            Q(status=Incident.STATUS_RESOLVED) | Q(active=False),
-            pk=id
-        )
-    except Incident.DoesNotExist:
-        return JsonResponse({"status": "error", "message": "Incidente resuelto o inactivo con el ID proporcionado no encontrado."}, status=HTTPStatus.NOT_FOUND)
-
-    image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
-
-    return image_path if os.path.exists(image_path) else None
