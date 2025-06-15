@@ -81,9 +81,11 @@ def get_incident_image_url(image_filename: str) -> str:
     
     base_server_url = get_base_url_with_port()
     image_path_prefix = "/uploads/incident_images/" 
-    full_image_url = f"{os.getenv("BASE_URL")}{image_path_prefix}{image_filename}"
+    full_image_url = f"{base_server_url}{image_path_prefix}{image_filename}"
+
+    image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
  
-    return full_image_url
+    return image_path
 
 
 def get_user_first_name_by_id(user_id):
