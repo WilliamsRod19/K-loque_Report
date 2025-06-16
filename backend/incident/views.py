@@ -34,6 +34,10 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
+import requests
+
+import cloudinary
+import cloudinary.uploader
 
 bearer_security_definition = [{'Bearer': []}]
 
@@ -44,6 +48,7 @@ def get_base_url_with_port():
     if port:
         return f"{base_url}:{port}"
     return base_url
+
 
 def validate_incident_data(data):
     errors = {}
@@ -72,42 +77,6 @@ def validate_incident_data(data):
     if errors:
         return errors
     return None
-
-
-def get_incident_image_url(image_filename: str) -> str:
-    if not image_filename:
-        return ""
-    
-    base_server_url = get_base_url_with_port()
-    base_url = os.getenv("BASE_URL", "http://localhost")
-    image_path_prefix = "/uploads/incident_images/" 
-    full_image_url = f"https://{base_url}{image_path_prefix}{image_filename}"
- 
-    return full_image_url
-
-def incident_image(id):
-    try:
-        incident = Incident.objects.get(
-            Q(status=Incident.STATUS_RESOLVED) | Q(active=False),
-            pk=id
-        )
-    except Incident.DoesNotExist:
-        return JsonResponse({"status": "error", "message": "Incidente resuelto o inactivo con el ID proporcionado no encontrado."}, status=HTTPStatus.NOT_FOUND)
-
-    image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
-
-    return image_path if os.path.exists(image_path) else None
-
-
-def get_incident_image_url_personalize(id) -> str:
-    try:
-        incident = Incident.objects.get(
-            Q(status=Incident.STATUS_RESOLVED) | Q(active=False),
-            pk=id
-        )
-    except Incident.DoesNotExist:
-        return JsonResponse({"status": "error", "message": "Incidente resuelto o inactivo con el ID proporcionado no encontrado."}, status=HTTPStatus.NOT_FOUND)
-
 
 
 def get_user_first_name_by_id(user_id):
@@ -231,7 +200,7 @@ class IncidentRC(APIView):
 
         data_list = []
         for incident in incidents:
-            image_url = get_incident_image_url(incident.image) if incident.image else None
+            image_url = incident.image_url
             created_by_name = get_user_first_name_by_id(incident.created_by)
             modified_by_name = get_user_first_name_by_id(incident.modified_by)
 
@@ -344,23 +313,23 @@ class IncidentRC(APIView):
                 "errors": validation_errors
             }, status=HTTPStatus.BAD_REQUEST)
 
-        saved_image_filename = None
+        image_upload_result = None
         if image_file:
             allowed_extensions = ['.jpg', '.jpeg', '.png']
             ext = os.path.splitext(image_file.name)[1].lower()
             if ext not in allowed_extensions:
-                return JsonResponse({"status": "error", "message": f"Tipo de archivo no permitido para la imagen ('{ext}'). Permitidos: {', '.join(allowed_extensions)}"}, status=HTTPStatus.BAD_REQUEST)
-            
-            # Validar tamaño de archivo
+                return JsonResponse({"status": "error", "message": f"Tipo de archivo no permitido. Permitidos: {', '.join(allowed_extensions)}"}, status=HTTPStatus.BAD_REQUEST)
             if image_file.size > 5 * 1024 * 1024: # 5MB
-                return JsonResponse({"status": "error", "message": "La imagen excede el tamaño máximo permitido (5MB)."}, status=HTTPStatus.BAD_REQUEST)
+                return JsonResponse({"status": "error", "message": "La imagen excede el tamaño máximo (5MB)."}, status=HTTPStatus.BAD_REQUEST)
 
-            fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'incident_images'))
-            # Crear un nombre de archivo único para evitar colisiones
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-            filename_prefix = f"incident_{user_id_making_request}_{timestamp}"
-            saved_image_filename = fs.save(f"{filename_prefix}{ext}", image_file)
-            
+            try:
+                image_upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="incident_images"
+                )
+            except Exception as e:
+                return JsonResponse({"status": "error", "message": f"Error al subir la imagen: {str(e)}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+        
         try:
             incident = Incident.objects.create(
                 incident_type=form_data.get('incident_type'),
@@ -368,7 +337,8 @@ class IncidentRC(APIView):
                 date=form_data.get('date'),
                 status=form_data.get('status', Incident.STATUS_ACTIVE),
                 comment=form_data.get('comment', None),
-                image=saved_image_filename,
+                image_url=image_upload_result.get('secure_url') if image_upload_result else None,
+                image_public_id=image_upload_result.get('public_id') if image_upload_result else None,
                 active=form_data.get('active', True),
                 created_by=user_id_making_request,
                 modified_by=user_id_making_request
@@ -379,7 +349,7 @@ class IncidentRC(APIView):
                 'description': incident.description,
                 'date': incident.date,
                 'status_display': incident.get_status_display(),
-                'image_url': get_incident_image_url(incident.image) if incident.image else None,
+                'image_url': incident.image_url
             }
 
             # Enviar correo de notificación
@@ -398,12 +368,12 @@ class IncidentRC(APIView):
                 "status": "ok",
                 "message": "Incidente creado exitosamente.",
                 "incident_id": incident.id,
-                "image_filename_saved": saved_image_filename
+                "image_url": incident.image_url
             }, status=HTTPStatus.CREATED)
 
-        except DjangoValidationError as ve:
-            return JsonResponse({"status": "error", "message": "Error de validación.", "errors": ve.message_dict}, status=HTTPStatus.BAD_REQUEST)
         except Exception as e:
+            if image_upload_result and image_upload_result.get('public_id'):
+                cloudinary.uploader.destroy(image_upload_result.get('public_id'))
             return JsonResponse({"status": "error", "message": f"No se pudo crear el incidente: {str(e)}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
@@ -456,7 +426,7 @@ class IncidentRUD(APIView):
                 {"status": "error", "message": "No tienes permiso para ver este incidente o no existe."}, status=HTTPStatus.FORBIDDEN 
             )
 
-        image_url = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
+        image_url = incident.image_url
         created_by_name = get_user_first_name_by_id(incident.created_by)
         modified_by_name = get_user_first_name_by_id(incident.modified_by)
 
@@ -625,7 +595,7 @@ class IncidentRUD(APIView):
                 
                 if creator_email_address:
                     resolver_name = request.user.get_full_name() or request.user.username
-                    image_url = get_incident_image_url(incident.image) if incident.image else None
+                    image_url = incident.image_url
                     
                     html_email_body = generate_incident_resolved_email_html(
                         incident=incident,
@@ -647,7 +617,7 @@ class IncidentRUD(APIView):
                 "incident_type": incident.incident_type,
                 "description": incident.description,
                 "date": str(incident.date),
-                "image_url": get_incident_image_url(incident.image),
+                "image_url": incident.image_url,
                 "comment": incident.comment,
                 "status": incident.status,
                 "status_display": incident.get_status_display(),
@@ -709,19 +679,16 @@ class IncidentRUD(APIView):
             return JsonResponse({"status": "error", "message": "No tienes permiso para eliminar este incidente."}, status=HTTPStatus.FORBIDDEN)
 
         try:
-            incident_image_filename = incident.image
+            incident_public_id = incident.image_public_id
             incident_name_for_message = incident.incident_type
 
             incident.delete()
 
-            if incident_image_filename:
-                image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident_image_filename)
-                if os.path.exists(image_path):
-                    try:
-                        os.remove(image_path)
-                    except OSError as e_remove:
-                        print(f"No se pudo eliminar el archivo de imagen '{image_path}': {e_remove}")
-            
+            if incident_public_id:
+                try:
+                    cloudinary.uploader.destroy(incident_public_id)
+                except Exception as e:
+                    print(f"Error al eliminar imagen de Cloudinary ({incident_public_id}): {e}")
             return JsonResponse(
                 {"status": "ok", "message": f"Incidente '{incident_name_for_message}' eliminado exitosamente."},
                 status=HTTPStatus.OK
@@ -929,36 +896,30 @@ class EditImage(APIView):
         if new_image_file.size > 5 * 1024 * 1024:
             return JsonResponse({"status": "error", "message": "La imagen excede el tamaño máximo permitido (5MB)."}, status=HTTPStatus.BAD_REQUEST)
 
-        fs_location = os.path.join(settings.MEDIA_ROOT, 'incident_images')
-        os.makedirs(fs_location, exist_ok=True)
-        fs = FileSystemStorage(location=fs_location)
-        
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-
-        filename_prefix = f"incident_{incident.id}_{request.user.id}_{timestamp}" 
-        new_image_filename = fs.save(f"{filename_prefix}{ext}", new_image_file)
-
-        old_image_filename = incident.image
+        old_public_id = incident.image_public_id
 
         try:
-            incident.image = new_image_filename
-            incident.modified_by = request.user.id
-            incident.save(update_fields=['image', 'modified_by', 'updated_at'])
+            upload_result = cloudinary.uploader.upload(
+                new_image_file,
+                folder="incident_images"
+            )
 
-            if old_image_filename:
-                old_image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', old_image_filename)
-                if os.path.exists(old_image_path):
-                    try:
-                        os.remove(old_image_path)
-                    except OSError as e_remove:
-                        print(f"No se pudo eliminar el archivo de imagen anterior '{old_image_path}': {e_remove}")
-            
+            incident.image_url = upload_result.get('secure_url')
+            incident.image_public_id = upload_result.get('public_id')
+            incident.modified_by = request.user.id
+            incident.save(update_fields=['image_url', 'image_public_id', 'modified_by', 'updated_at'])
+
+            if old_public_id:
+                try:
+                    cloudinary.uploader.destroy(old_public_id)
+                except Exception as e:
+                    print(f"No se pudo eliminar la imagen anterior de Cloudinary ({old_public_id}): {e}")
+
             return JsonResponse({
                 "status": "ok",
                 "message": "Imagen del incidente actualizada exitosamente.",
                 "incident_id": incident.id,
-                "new_image_filename": new_image_filename,
-                "new_image_url": get_incident_image_url(new_image_filename)
+                "new_image_url": incident.image_url
             }, status=HTTPStatus.OK)
 
         except Exception as e:
@@ -1020,16 +981,15 @@ class ActiveReports(APIView):
             story.append(details_table)
             story.append(Spacer(1, 0.2 * inch))
 
-            if incident.image:
-                image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
-                if os.path.exists(image_path):
-                    try:
-                        img = Image(image_path, width=3*inch, height=2.25*inch, kind='proportional')
-                        story.append(img)
-                    except Exception as e:
-                        story.append(Paragraph(f"Error al cargar imagen: {e}", styles['Italic']))
-                else:
-                    story.append(Paragraph("Imagen no encontrada en el servidor.", styles['Italic']))
+            if incident.image_url:
+                try:
+                    response = requests.get(incident.image_url, stream=True)
+                    response.raise_for_status()
+
+                    img = Image(io.BytesIO(response.content), width=3*inch, height=2.25*inch, kind='proportional')
+                    story.append(img)
+                except Exception as e:
+                    story.append(Paragraph(f"Error al cargar imagen: {e}", styles['Italic']))
 
             story.append(Spacer(1, 0.5 * inch))
 
@@ -1094,17 +1054,15 @@ class SpecificReport(APIView):
         story.append(table)
         story.append(Spacer(1, 0.2 * inch))
 
-        if incident.image:
-            image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
-            if os.path.exists(image_path):
-                story.append(Paragraph(f"Imagen Adjunta: {image_path}", styles['h2']))
-                try:
-                    img = Image(image_path, width=4*inch, height=3*inch, kind='proportional')
-                    story.append(img)
-                except Exception as e:
-                    story.append(Paragraph(f"No se pudo cargar la imagen: {e}", styles['BodyText']))
-            else:
-                 story.append(Paragraph("La imagen adjunta no fue encontrada en el servidor.", styles['BodyText']))
+        if incident.image_url:
+            story.append(Paragraph("Imagen Adjunta:", styles['h2']))
+            try:
+                response = requests.get(incident.image_url, stream=True)
+                response.raise_for_status()
+                img = Image(io.BytesIO(response.content), width=4*inch, height=3*inch, kind='proportional')
+                story.append(img)
+            except Exception as e:
+                story.append(Paragraph(f"No se pudo cargar la imagen: {e}", styles['BodyText']))
 
         doc.build(story, onFirstPage=self.draw_header, onLaterPages=self.draw_header)
 
@@ -1175,18 +1133,15 @@ class ArchivedReport(APIView):
         story.append(table)
         story.append(Spacer(1, 0.2 * inch))
 
-        if incident.image:
-            image_path = os.path.join(settings.MEDIA_ROOT, 'incident_images', incident.image)
-
-            if os.path.exists(image_path):
-                story.append(Paragraph("Imagen Adjunta:", styles['h2']))
-                try:
-                    img = Image(image_path, width=4*inch, height=3*inch, kind='proportional')
-                    story.append(img)
-                except Exception as e:
-                    story.append(Paragraph(f"No se pudo cargar la imagen: {e}", styles['BodyText']))
-            else:
-                 story.append(Paragraph("La imagen adjunta no fue encontrada en el servidor.", styles['BodyText']))
+        if incident.image_url:
+            story.append(Paragraph("Imagen Adjunta:", styles['h2']))
+            try:
+                response = requests.get(incident.image_url, stream=True)
+                response.raise_for_status()
+                img = Image(io.BytesIO(response.content), width=4*inch, height=3*inch, kind='proportional')
+                story.append(img)
+            except Exception as e:
+                story.append(Paragraph(f"No se pudo cargar la imagen: {e}", styles['BodyText']))
 
         doc.build(story, onFirstPage=self.draw_header, onLaterPages=self.draw_header)
 
